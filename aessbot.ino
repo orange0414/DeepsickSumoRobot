@@ -1,90 +1,149 @@
-// PINES PARA SENSOR ULTRASONIDO
+// === DEFINICIÓN DE PINES ===
+// Sensor ultrasónico
 const int pinTrigger = 3;
 const int pinEcho = 2;
 
-// PINES PARA MOTORES
-// motor A
-const int pinENA = 6;    //D6 PMW
+// Motor A
+const int pinENA = 6;  // PWM
 const int pinIN1 = 7;
 const int pinIN2 = 8;
-// motor B
+
+// Motor B
 const int pinIN3 = 9;
 const int pinIN4 = 10;
-const int pinENB = 11;   //D11 PMW
+const int pinENB = 11;  // PWM
+
 const int pinMotorA[3] = { pinENA, pinIN1, pinIN2 };
 const int pinMotorB[3] = { pinENB, pinIN3, pinIN4 };
 
-//Variables
-bool enemyDet;  // si esta detectando enemigo
+// === VARIABLES DE ESTADO ===
+bool detected = false;    // objetivo detectado por ultrasonido
+unsigned long begin = 0;  // tiempo de inicio del estado actual
 
+// Estados de la máquina
 const int STATE_SEARCH = 1;
 const int STATE_ATTACK = 2;
 const int STATE_AVOID = 3;
-int state;
+int state = STATE_SEARCH;
 
-void readSensor(){
-  // Generar un pulso de 10 microsegundos en el pin Trigger
+// === FUNCIONES ===
+
+// Lectura de sensor ultrasónico
+void readSensor() {
   digitalWrite(pinTrigger, LOW);
   delayMicroseconds(2);
   digitalWrite(pinTrigger, HIGH);
   delayMicroseconds(10);
   digitalWrite(pinTrigger, LOW);
 
-  // Medir la duración del pulso recibido en el pin Echo
-  long rcvTime = pulseIn(pinEcho, HIGH);
-
-  // Calcular distancia en cm (sonido va a 343 m/s)
+  long rcvTime = pulseIn(pinEcho, HIGH);  // tiempo del eco
   float distanciaCm = rcvTime * 0.0343 / 2;
-  if (distanciaCm < 50) {
-    enemyDet = true;
-  }else {
-    enemyDet = false;
-  }
+
+  detected = (distanciaCm > 0 && distanciaCm < 50);  // evitar falsos positivos
 }
 
+// Control de motores
+void moveForward(const int pinMotor[3], int speed) {
+  digitalWrite(pinMotor[1], HIGH);
+  digitalWrite(pinMotor[2], LOW);
+  analogWrite(pinMotor[0], speed);
+}
+
+void moveBackward(const int pinMotor[3], int speed) {
+  digitalWrite(pinMotor[1], LOW);
+  digitalWrite(pinMotor[2], HIGH);
+  analogWrite(pinMotor[0], speed);
+}
+
+void stopMove(const int pinMotor[3]) {
+  digitalWrite(pinMotor[1], LOW);
+  digitalWrite(pinMotor[2], LOW);
+  analogWrite(pinMotor[0], 0);
+}
+
+// Cambio de estado
+void enter(int newState) {
+  state = newState;
+  begin = millis();
+}
+
+// Estado: Giro aleatorio
+void turnRandom_enter(int newState) {
+  bool clockwise = random(0, 2);  // sentido aleatorio
+
+  if (clockwise) {
+    moveForward(pinMotorA, 120);
+    moveBackward(pinMotorB, 120);
+  } else {
+    moveBackward(pinMotorA, 120);
+    moveForward(pinMotorB, 120);
+  }
+  enter(newState);
+}
+
+// Estado: Avanzar hacia el objetivo
+void forward_enter(int newState) {
+  moveForward(pinMotorA, 200);
+  moveForward(pinMotorB, 200);
+  enter(newState);
+}
+
+// Estado: Retroceder (por ejemplo, para evitar bordes o esquivar)
+void backward_enter(int newState) {
+  moveBackward(pinMotorA, 150);
+  moveBackward(pinMotorB, 150);
+  enter(newState);
+}
+
+// Comprobación de timeout de estado
+bool state_timeout(unsigned long ms) {
+  return millis() - begin > ms;
+}
+
+// === SETUP ===
 void setup() {
-  // Setup del sensor ultrasonido
   Serial.begin(9600);
+
+  // Pines del sensor ultrasónico
   pinMode(pinTrigger, OUTPUT);
   pinMode(pinEcho, INPUT);
 
-  // Configuración de pines como salida
-  pinMode(ENA, OUTPUT);
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
-  
-  pinMode(ENB, OUTPUT);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
+  // Pines de motores
+  pinMode(pinENA, OUTPUT);
+  pinMode(pinIN1, OUTPUT);
+  pinMode(pinIN2, OUTPUT);
+  pinMode(pinENB, OUTPUT);
+  pinMode(pinIN3, OUTPUT);
+  pinMode(pinIN4, OUTPUT);
 
-  //Despues de activar, entrar en estaddo de searching
-  trunRandom_enter(STATE_SEARCHING);
+  randomSeed(analogRead(0));  // mejor aleatoriedad
+
+  turnRandom_enter(STATE_SEARCH);
 }
 
+// === LOOP PRINCIPAL ===
 void loop() {
   readSensor();
-  if(state ==STATE_SEARCHING){
 
+  switch (state) {
+    case STATE_SEARCH:
+      if (detected) {
+        forward_enter(STATE_ATTACK);
+      } else if (state_timeout(2000)) {
+        turnRandom_enter(STATE_SEARCH);
+      }
+      break;
+
+    case STATE_ATTACK:
+      if (!detected) {
+        turnRandom_enter(STATE_SEARCH);
+      }
+      break;
+
+    default:  // Cualquier estado desconocido: volver a buscar
+      if (state_timeout(500)) {
+        turnRandom_enter(STATE_SEARCH);
+      }
+      break;
   }
-}
-
-void moveForward(const int pinMotor[3], int speed){
-  digitalWrite(pinMotor[1], HIGH);
-  digitalWrite(pinMotor[2], LOW);
- 
-  analogWrite(pinMotor[0], speed);
-}
-
-void moveBackward(const int pinMotor[3], int speed){
-  digitalWrite(pinMotor[1], LOW);
-  digitalWrite(pinMotor[2], HIGH);
-
-  analogWrite(pinMotor[0], speed);
-}
-
-void stopMove(const int pinMotor[3]){
-  digitalWrite(pinMotor[1], LOW);
-  digitalWrite(pinMotor[2], LOW);
-
-  analogWrite(pinMotor[0], 0);
 }
