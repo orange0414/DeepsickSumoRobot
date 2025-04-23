@@ -3,6 +3,10 @@
 const int pinTrigger = 3;
 const int pinEcho = 2;
 
+// Sensor de linea
+const int SR = 
+const int SL = 
+
 // Motor A
 const int pinENA = 6;  // PWM
 const int pinIN1 = 7;
