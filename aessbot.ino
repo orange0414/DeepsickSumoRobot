@@ -1,3 +1,4 @@
+// === DEFINICIÓN DE PINES ===
 // Sensor IR
 #include <IRremote.h>
 const int RECV_PIN = !!!!!!!!!!!!!!!!!!!!!!!!!!!!!;
@@ -5,7 +6,6 @@ IRrecv irrecv(RECV_PIN);
 decode_results results;
 bool activado = false;
 
-// === DEFINICIÓN DE PINES ===
 // Sensor ultrasónico
 const int pinTrigger = 3;
 const int pinEcho = 2;
@@ -129,6 +129,10 @@ void setup() {
   pinMode(pinIN3, OUTPUT);
   pinMode(pinIN4, OUTPUT);
 
+  // Pines de sensores de línea
+  pinMode(SL, INPUT);
+  pinMode(SR, INPUT);
+
   randomSeed(analogRead(0));  // mejor aleatoriedad
 
   turnRandom_enter(STATE_SEARCH);
@@ -142,7 +146,39 @@ void loop() {
       irrecv.resume();
     }
   } else {
+
     readSensor();
+    // === DETECCIÓN DE BORDE BLANCO ===
+    bool bordeIzq = digitalRead(SL) == LOW;
+    bool bordeDer = digitalRead(SR) == LOW;
+
+    if (bordeIzq || bordeDer) 
+      // Retroceder
+      backward_enter(STATE_AVOID);
+      delay(300);
+
+      // Girar según sensor activado
+      if (bordeIzq && !bordeDer) {
+        moveForward(pinMotorA, 100);
+        moveBackward(pinMotorB, 100);  // gira derecha
+      } else if (bordeDer && !bordeIzq) {
+        moveBackward(pinMotorA, 100);
+        moveForward(pinMotorB, 100);  // gira izquierda
+      } else {
+        // Ambos sensores
+          moveBackward(pinMotorA, 100);
+          moveBackward(pinMotorB, 100);
+      }
+
+      delay(400);  // tiempo de giro
+      stopMove(pinMotorA);
+      stopMove(pinMotorB);
+      delay(100);
+      turnRandom_enter(STATE_SEARCH);  // vuelve al modo búsqueda
+      return;                          // evita seguir con la lógica actual
+    }
+
+    // === MAQUINA DE ESTADDOS ===
     switch (state) {
       case STATE_SEARCH:
         if (detected) {
