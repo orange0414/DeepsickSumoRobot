@@ -1,11 +1,18 @@
+// Sensor IR
+#include <IRremote.h>
+const int RECV_PIN = !!!!!!!!!!!!!!!!!!!!!!!!!!!!!;
+IRrecv irrecv(RECV_PIN);
+decode_results results;
+bool activado = false;
+
 // === DEFINICIÓN DE PINES ===
 // Sensor ultrasónico
 const int pinTrigger = 3;
 const int pinEcho = 2;
 
 // Sensor de linea
-const int SR = //quedar para decidir pin
-const int SL = // ''
+const int SR = !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!;
+const int SL = !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!;
 
 // Motor A
 const int pinENA = 6;  // PWM
@@ -107,6 +114,8 @@ bool state_timeout(unsigned long ms) {
 // === SETUP ===
 void setup() {
   Serial.begin(9600);
+  // Pines de sensor IR
+  irrecv.enableIRIn();
 
   // Pines del sensor ultrasónico
   pinMode(pinTrigger, OUTPUT);
@@ -127,27 +136,33 @@ void setup() {
 
 // === LOOP PRINCIPAL ===
 void loop() {
-  readSensor();
+  if (!activado) {
+    if (irrecv.decode(&results)) {
+      activado = true;
+      irrecv.resume();
+    }
+  } else {
+    readSensor();
+    switch (state) {
+      case STATE_SEARCH:
+        if (detected) {
+          forward_enter(STATE_ATTACK);
+        } else if (state_timeout(2000)) {
+          turnRandom_enter(STATE_SEARCH);
+        }
+        break;
 
-  switch (state) {
-    case STATE_SEARCH:
-      if (detected) {
-        forward_enter(STATE_ATTACK);
-      } else if (state_timeout(2000)) {
-        turnRandom_enter(STATE_SEARCH);
-      }
-      break;
+      case STATE_ATTACK:
+        if (!detected) {
+          turnRandom_enter(STATE_SEARCH);
+        }
+        break;
 
-    case STATE_ATTACK:
-      if (!detected) {
-        turnRandom_enter(STATE_SEARCH);
-      }
-      break;
-
-    default:  // Cualquier estado desconocido: volver a buscar
-      if (state_timeout(500)) {
-        turnRandom_enter(STATE_SEARCH);
-      }
-      break;
+      default:  // Cualquier estado desconocido: volver a buscar
+        if (state_timeout(500)) {
+          turnRandom_enter(STATE_SEARCH);
+        }
+        break;
+    }
   }
 }
