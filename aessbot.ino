@@ -1,7 +1,7 @@
 // === DEFINICIÓN DE PINES ===
 // Sensor IR
 #include <IRremote.h>
-const int RECV_PIN = !!!!!!!!!!!!!!!!!!!!!!!!!!!!!;
+const int RECV_PIN = 12;
 IRrecv irrecv(RECV_PIN);
 decode_results results;
 bool activado = false;
@@ -11,8 +11,8 @@ const int pinTrigger = 3;
 const int pinEcho = 2;
 
 // Sensor de linea
-const int SR = !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!;
-const int SL = !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!;
+const int SR = A1;
+const int SL = A2;
 
 // Motor A
 const int pinENA = 6;  // PWM
